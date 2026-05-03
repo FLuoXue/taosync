@@ -29,7 +29,8 @@ def getConfig():
             'console_level': 2,
             'log_save': 7,
             'task_save': 0,
-            'timeout': 72
+            'timeout': 72,
+            'copy_cache_max_mb': 1024
         }
         if os.path.exists('data/config.ini'):
             try:
@@ -52,6 +53,7 @@ def getConfig():
                 sCfg['log_save'] = int(os.getenv('TAO_LOG_SAVE', 7))
                 sCfg['task_save'] = int(os.getenv('TAO_TASK_SAVE', 0))
                 sCfg['timeout'] = int(os.getenv('TAO_TASK_TIMEOUT', 72))
+                sCfg['copy_cache_max_mb'] = int(os.getenv('TAO_COPY_CACHE_MAX_MB', 1024))
             except Exception as e:
                 logger = logging.getLogger()
                 logger.error(f"环境变量读取失败，将使用默认配置_/_ENV read error: {e}")
@@ -66,3 +68,28 @@ def getConfig():
             }
         }
     return sysConfig
+
+
+def updateServerConfig(configMap):
+    """
+    更新并持久化后端配置
+    :param configMap: 仅支持server下的数字配置
+    :return:
+    """
+    if not configMap:
+        return
+    cfg = getConfig()
+    if 'server' not in cfg:
+        cfg['server'] = {}
+    for keyItem, keyVal in configMap.items():
+        cfg['server'][keyItem] = int(keyVal)
+
+    cfgFile = configparser.ConfigParser()
+    if os.path.exists('data/config.ini'):
+        cfgFile.read('data/config.ini', encoding='utf8')
+    if 'tao' not in cfgFile:
+        cfgFile['tao'] = {}
+    for keyItem, keyVal in configMap.items():
+        cfgFile['tao'][keyItem] = str(int(keyVal))
+    with open('data/config.ini', 'w', encoding='utf8') as fp:
+        cfgFile.write(fp)

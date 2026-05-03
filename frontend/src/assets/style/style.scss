@@ -125,7 +125,27 @@ body {
 	font-size: 16px;
 	background-color: var(--bg-primary);
 	color: var(--text-primary);
-	transition: background-color 0.3s, color 0.3s;
+	transition: background-color 0.3s ease, color 0.3s ease;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+* {
+	box-sizing: border-box;
+}
+
+// 平滑过渡
+* {
+	transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+// 禁用某些元素的过渡
+button, input, select, textarea {
+	transition: none;
+}
+
+// 重新启用按钮的hover过渡
+button {
+	transition: all 0.3s ease;
 }
 
 .el-menu {
@@ -228,28 +248,80 @@ body {
 	background: #409eff;
 	color: #FFF;
 	border-color: #409eff;
-	// background: linear-gradient(180deg,#474a61,#353647);
-	// box-shadow: inset 0 1px 2px 0 hsla(0,0%,100%,.5),1px 1px 2px 0 rgba(0,0,0,.1);
-	// border-radius: 4px;
-	// border: 1px solid #252738;
+	transition: all 0.3s ease;
+	
+	&:hover, &:focus {
+		background: #66b1ff;
+		border-color: #66b1ff;
+		transform: translateY(-1px);
+		box-shadow: 0 4px 8px rgba(64, 158, 255, 0.3);
+	}
+	
+	&:active {
+		background: #3a8ee6;
+		border-color: #3a8ee6;
+		transform: translateY(0);
+	}
 }
 
 .el-button--danger {
     color: #FFF;
     background-color: #F56C6C;
     border-color: #F56C6C;
+    transition: all 0.3s ease;
+    
+    &:hover, &:focus {
+    	background-color: #f78989;
+    	border-color: #f78989;
+    	transform: translateY(-1px);
+    	box-shadow: 0 4px 8px rgba(245, 108, 108, 0.3);
+    }
+    
+    &:active {
+    	background-color: #dd6161;
+    	border-color: #dd6161;
+    	transform: translateY(0);
+    }
 }
 
 .el-button--warning {
     color: #FFF;
     background-color: #E6A23C;
     border-color: #E6A23C;
+    transition: all 0.3s ease;
+    
+    &:hover, &:focus {
+    	background-color: #ebb563;
+    	border-color: #ebb563;
+    	transform: translateY(-1px);
+    	box-shadow: 0 4px 8px rgba(230, 162, 60, 0.3);
+    }
+    
+    &:active {
+    	background-color: #cf9236;
+    	border-color: #cf9236;
+    	transform: translateY(0);
+    }
 }
 
 .el-button--success {
     color: #FFF;
     background-color: #67C23A;
     border-color: #67C23A;
+    transition: all 0.3s ease;
+    
+    &:hover, &:focus {
+    	background-color: #85ce61;
+    	border-color: #85ce61;
+    	transform: translateY(-1px);
+    	box-shadow: 0 4px 8px rgba(103, 194, 58, 0.3);
+    }
+    
+    &:active {
+    	background-color: #5daf34;
+    	border-color: #5daf34;
+    	transform: translateY(0);
+    }
 }
 
 .el-button--primary.is-plain {
@@ -431,42 +503,97 @@ body {
 
 .el-dialog {
 	background-color: var(--bg-secondary);
+	border-radius: 8px;
+	box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+	
+	.el-dialog__header {
+		padding: 20px 24px;
+		border-bottom: 1px solid var(--border-color);
+	}
 	
 	.el-dialog__title {
 		color: var(--text-primary);
+		font-size: 18px;
+		font-weight: 600;
 	}
 	
-	.el-dialog__headerbtn .el-dialog__close {
-		color: var(--text-primary);
+	.el-dialog__headerbtn {
+		top: 20px;
+		right: 24px;
+		
+		.el-dialog__close {
+			color: var(--text-primary);
+			font-size: 20px;
+			transition: all 0.3s ease;
+			
+			&:hover {
+				color: #409eff;
+			}
+		}
 	}
 	
 	.el-dialog__body {
-		color: #FFFFFF;
+		color: var(--text-primary);
+		padding: 24px;
+	}
+	
+	.el-dialog__footer {
+		padding: 16px 24px;
+		border-top: 1px solid var(--border-color);
 	}
 }
 
 .el-popover {
-	background-color: #191b2c;
-	border-color: #474856;
-	color: #FFFFFF;
+	background-color: var(--popover-bg);
+	border-color: var(--popover-border);
+	color: var(--popover-text);
+	border-radius: 6px;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+	
+	.el-popover__title {
+		color: #e6a23c;
+		font-weight: 600;
+		margin-bottom: 8px;
+	}
 }
 
 .el-message-box {
-	background-color: #292b3c;
-	border: 1px solid #001529;
+	background-color: var(--bg-secondary);
+	border: 1px solid var(--border-color);
+	border-radius: 8px;
+	box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+	
+	.el-message-box__header {
+		padding: 20px 24px 16px;
+	}
 	
 	.el-message-box__title {
-		color: #FFFFFF;
+		color: var(--text-primary);
+		font-size: 18px;
+		font-weight: 600;
 	}
 	
 	.el-message-box__headerbtn {
+		top: 20px;
+		right: 24px;
+		
 		.el-message-box__close {
-			color: #FFFFFF;
+			color: var(--text-primary);
+			transition: all 0.3s ease;
+			
+			&:hover {
+				color: #409eff;
+			}
 		}
 	}
 	
 	.el-message-box__content {
-		color: #FFFFFF;
+		color: var(--text-primary);
+		padding: 16px 24px;
+	}
+	
+	.el-message-box__btns {
+		padding: 16px 24px 20px;
 	}
 }
 

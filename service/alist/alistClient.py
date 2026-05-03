@@ -3,6 +3,7 @@
 @Date  ：2024/7/4 13:57 
 """
 import time
+from urllib.parse import quote, urlencode
 
 import requests
 
@@ -348,3 +349,92 @@ class AlistClient:
         self.post('/api/admin/task/copy/cancel', params={
             'tid': taskId
         })
+
+    def getFileInfo(self, path, password=''):
+        """
+        获取文件/目录信息
+        :param path: 文件或目录路径
+        :param password: 受保护目录密码
+        :return:
+        """
+        return self.post('/api/fs/get', data={
+            'path': path,
+            'password': password
+        })
+
+    def getDownloadUrl(self, path, password=''):
+        """
+        获取可用于下载的链接
+        :param path: 文件路径
+        :param password: 受保护目录密码
+        :return:
+        """
+        fileInfo = self.getFileInfo(path, password)
+        if fileInfo is None:
+            raise Exception('file info is empty')
+        if 'raw_url' in fileInfo and fileInfo['raw_url']:
+            return fileInfo['raw_url']
+        if not path.startswith('/'):
+            path = '/' + path
+        rawPath = quote(path, safe='/')
+        downUrl = f"{self.url}/d{rawPath}"
+        sign = fileInfo.get('sign', None)
+        if sign:
+            downUrl += '?' + urlencode({'sign': sign})
+        return downUrl
+
+    def downloadFile(self, path, localFilePath, password=''):
+        """
+        下载文件到本地
+        :param path: 文件路径
+        :param localFilePath: 本地文件路径
+        :param password:
+        :return:
+        """
+        downUrl = self.getDownloadUrl(path, password)
+        headers = None
+        if self.token is not None:
+            headers = {
+                'Authorization': self.token
+            }
+        try:
+            with requests.get(downUrl, stream=True, headers=headers, timeout=(60, 300)) as r:
+                if r.status_code != 200:
+                    raise Exception(G('alist_fail_code_reason').format(r.status_code, G('code_not_200')))
+                with open(localFilePath, 'wb') as fp:
+                    for chunk in r.iter_content(chunk_size=1024 * 256):
+                        if chunk:
+                            fp.write(chunk)
+        except Exception as e:
+            raise Exception(e)
+
+    def uploadLocalFile(self, dstDir, fileName, localFilePath, overwrite=True):
+        """
+        将本地文件上传到目标目录
+        :param dstDir: 目标目录
+        :param fileName: 文件名
+        :param localFilePath: 本地文件路径
+        :param overwrite: 是否覆盖
+        :return:
+        """
+        if not dstDir.startswith('/'):
+            dstDir = '/' + dstDir
+        if not dstDir.endswith('/'):
+            dstDir = dstDir + '/'
+        filePath = f"{dstDir}{fileName}"
+        headers = {
+            'File-Path': quote(filePath, safe='/'),
+            'Overwrite': 'true' if overwrite else 'false'
+        }
+        if self.token is not None:
+            headers['Authorization'] = self.token
+        try:
+            with open(localFilePath, 'rb') as fp:
+                r = requests.put(self.url + '/api/fs/put', data=fp, headers=headers, timeout=(60, 300))
+            if r.status_code != 200:
+                raise Exception(G('alist_fail_code_reason').format(r.status_code, G('code_not_200')))
+            res = r.json()
+            if 'code' not in res or res['code'] != 200:
+                raise Exception(G('alist_fail_code_reason').format(res.get('code', 500), res.get('message', 'error')))
+        except Exception as e:
+            raise Exception(e)

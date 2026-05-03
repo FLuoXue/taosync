@@ -3,6 +3,7 @@
 @Date  ：2024/7/9 17:17 
 """
 import logging
+import re
 
 from common.LNG import G
 from mapper import jobMapper
@@ -61,6 +62,49 @@ def cleanJobInput(job):
                 job[key] = value.strip()
     if job['exclude'] is not None:
         job['exclude'] = ":".join([item.strip() for item in job['exclude'].split(':')])
+    if 'copyType' not in job or job['copyType'] is None:
+        job['copyType'] = 0
+    if 'dstAlistId' not in job or job['dstAlistId'] is None:
+        job['dstAlistId'] = job['alistId']
+    if int(job['copyType']) == 0 and int(job['dstAlistId']) != int(job['alistId']):
+        raise Exception(G('copy_type_cross_engine_only_local'))
+    if 'processEnable' not in job or job['processEnable'] is None:
+        job['processEnable'] = 0
+    if 'processTypes' not in job:
+        job['processTypes'] = None
+    if 'processFind' not in job:
+        job['processFind'] = None
+    if 'processReplace' not in job:
+        job['processReplace'] = None
+    if job.get('processTypes', None) is not None:
+        cleanTypes = []
+        for item in job['processTypes'].split(':'):
+            cItem = item.strip().lower()
+            if not cItem:
+                continue
+            if not cItem.startswith('.'):
+                cItem = '.' + cItem
+            cleanTypes.append(cItem)
+        job['processTypes'] = ":".join(cleanTypes)
+        if job['processTypes'] == '':
+            job['processTypes'] = None
+    if int(job['processEnable']) == 1:
+        if int(job['copyType']) != 1:
+            raise Exception(G('process_only_local_copy'))
+        if job.get('processTypes', None) is None:
+            raise Exception(G('process_types_required'))
+        if job.get('processFind', None) is None:
+            raise Exception(G('process_find_required'))
+        if job.get('processReplace', None) is None:
+            job['processReplace'] = ''
+        try:
+            re.compile(job['processFind'])
+        except Exception:
+            raise Exception(G('process_find_invalid'))
+    else:
+        job['processTypes'] = None
+        job['processFind'] = None
+        job['processReplace'] = None
 
 
 def addJobClient(job, isInit=False):

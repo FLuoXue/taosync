@@ -57,7 +57,15 @@ allLng = {
         'hms': '{} 小时 {} 分 {} 秒',
         'task_end_msg_error': '失败原因为：{}',
         'notify_error': '发送通知过程中失败，原因为：{}',
-        'notify_test_msg': '这是一条由您自己发送的TaoSync测试消息，当你看到这条消息，说明你的配置是正确可用的。'
+        'notify_test_msg': '这是一条由您自己发送的TaoSync测试消息，当你看到这条消息，说明你的配置是正确可用的。',
+        'copy_type_cross_engine_only_local': '远端复制仅支持同一引擎，跨引擎请使用本地中转复制',
+        'copy_cache_too_small_skip': '文件大小超过本地中转缓存上限，已跳过：{} > {} 字节',
+        'copy_cache_max_mb_invalid': '缓存上限必须是正整数(MB)',
+        'process_only_local_copy': '文件处理仅支持本地中转复制',
+        'process_types_required': '开启文件处理后，匹配文件类型必填',
+        'process_find_required': '开启文件处理后，替换查找规则必填',
+        'process_find_invalid': '替换查找规则不是有效的正则表达式',
+        'process_file_fail': '处理文件失败：{}'
     },
     'eng': {
         'success': 'success',
@@ -113,7 +121,15 @@ allLng = {
         'task_end_msg_error': 'Failed due to {}',
         'notify_error': 'Failed to send notification due to: {}',
         'notify_test_msg': 'This is a TaoSync test message sent by yourself. '
-                           'When you see this message, it means your configuration is correct and available.'
+                           'When you see this message, it means your configuration is correct and available.',
+        'copy_type_cross_engine_only_local': 'Remote copy supports same engine only. Use local relay copy for cross-engine sync',
+        'copy_cache_too_small_skip': 'File skipped because size is larger than local relay cache: {} > {} bytes',
+        'copy_cache_max_mb_invalid': 'Cache max size must be a positive integer in MB',
+        'process_only_local_copy': 'File processing is only supported in local relay copy mode',
+        'process_types_required': 'Matched file types are required when file processing is enabled',
+        'process_find_required': 'Find rule is required when file processing is enabled',
+        'process_find_invalid': 'Find rule is not a valid regular expression',
+        'process_file_fail': 'Process file failed: {}'
     }
 }
 

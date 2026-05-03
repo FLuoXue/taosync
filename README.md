@@ -178,6 +178,8 @@ log_save=7
 task_save=0
 # 任务执行超时时间，单位小时。一定要设置长一点，以免要备份的东西太多
 task_timeout=72
+# 本地中转复制最大缓存空间，单位MB；单个文件大于该值将被跳过
+copy_cache_max_mb=1024
 ```
 
 上边的文件默认不存在，如需要，您可以手动在程序同级目录的`data`目录下创建`config.ini`，并填入上边的内容。注意，文件应使用`UTF-8`编码
@@ -191,6 +193,7 @@ task_timeout=72
 | log_save      | TAO_LOG_SAVE      | 系统日志保留天数，该天数之前的日志会自动清理，单位天，0表示不自动清理 | 7             |
 | task_save     | TAO_TASK_SAVE     | 任务记录保留天数，该天数之前的记录会自动清理，单位天，0表示不自动清理 | 0             |
 | task_timeout  | TAO_TASK_TIMEOUT  | 任务执行超时时间，单位小时。一定要设置长一点，以免要备份的东西太多 | 72            |
+| copy_cache_max_mb | TAO_COPY_CACHE_MAX_MB | 本地中转复制最大缓存空间，单位MB；单个文件大于该值将被跳过 | 1024          |
 | -             | TZ                | 时区                                                         | Asia/Shanghai |
 
 </details>

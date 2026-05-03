@@ -1,7 +1,7 @@
 import json
 
-from common.LNG import language
-from common.config import getConfig
+from common.LNG import G, language
+from common.config import getConfig, updateServerConfig
 from controller.baseController import BaseHandler, handle_request, cookieName
 from service.system import userService
 
@@ -47,3 +47,21 @@ class Language(BaseHandler):
     @handle_request
     def post(self, req):
         language(req['language'])
+
+
+class System(BaseHandler):
+    @handle_request
+    def get(self, req):
+        cfg = getConfig()
+        return {
+            'copyCacheMaxMb': cfg['server']['copy_cache_max_mb']
+        }
+
+    @handle_request
+    def put(self, req):
+        copyCacheMaxMb = int(req.get('copyCacheMaxMb', 0))
+        if copyCacheMaxMb <= 0:
+            raise Exception(G('copy_cache_max_mb_invalid'))
+        updateServerConfig({
+            'copy_cache_max_mb': copyCacheMaxMb
+        })

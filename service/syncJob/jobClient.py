@@ -5,8 +5,12 @@
 import itertools
 import json
 import logging
+import os
+import re
+import shutil
 import threading
 import time
+import uuid
 from collections import defaultdict
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -14,6 +18,7 @@ from pathspec import PathSpec
 from pathspec.patterns.gitwildmatch import GitWildMatchPattern
 
 from common.LNG import G
+from common.config import getConfig
 from mapper import jobMapper
 from service.alist import alistService
 from service.syncJob import taskService
@@ -22,7 +27,9 @@ from service.syncJob import taskService
 class CopyItem:
     def __init__(self, srcPath, dstPath, fileName, fileSize, method, jobTask):
         self.jobTask = jobTask
-        self.alistClient = self.jobTask.alistClient
+        self.srcAlistClient = self.jobTask.srcAlistClient
+        self.dstAlistClient = self.jobTask.dstAlistClient
+        self.copySyncType = self.jobTask.copySyncType
         self.taskId = self.jobTask.taskId
         self.srcPath = srcPath
         self.dstPath = dstPath
@@ -45,16 +52,55 @@ class CopyItem:
             if self.jobTask.breakFlag:
                 self.status = 4
             else:
-                self.alistTaskId = self.alistClient.copyFile(self.srcPath, self.dstPath, self.fileName)
+                if self.copySyncType == 0:
+                    self.doByRemoteCopy()
+                else:
+                    self.doByLocalRelayCopy()
         except Exception as e:
             self.errMsg = str(e)
             self.status = 7
-        else:
-            if self.alistTaskId is None:
-                self.status = 2
-            elif self.status != 4:
-                self.checkAndGetStatus()
         self.endIt()
+
+    def doByRemoteCopy(self):
+        self.alistTaskId = self.srcAlistClient.copyFile(self.srcPath, self.dstPath, self.fileName)
+        if self.alistTaskId is None:
+            self.status = 2
+        elif self.status != 4:
+            self.checkAndGetStatus()
+
+    def doByLocalRelayCopy(self):
+        localTmpFile = os.path.join(self.jobTask.tempDir, f"{uuid.uuid4().hex}.tmp")
+        srcFilePath = f"{self.srcPath}{self.fileName}"
+        try:
+            self.status = 1
+            self.srcAlistClient.downloadFile(srcFilePath, localTmpFile)
+            self.tryProcessFile(localTmpFile)
+            if self.jobTask.breakFlag:
+                self.status = 4
+                return
+            self.dstAlistClient.uploadLocalFile(self.dstPath, self.fileName, localTmpFile, True)
+            self.status = 2
+        finally:
+            if os.path.exists(localTmpFile):
+                os.remove(localTmpFile)
+
+    def tryProcessFile(self, localTmpFile):
+        if self.jobTask.processEnable != 1:
+            return
+        if not self.jobTask.fileTypeMatched(self.fileName):
+            return
+        if self.jobTask.processPattern is None:
+            raise Exception(G('process_find_required'))
+        try:
+            with open(localTmpFile, 'rb') as fp:
+                rawData = fp.read()
+            textData = rawData.decode('utf-8')
+            newText = self.jobTask.processPattern.sub(self.jobTask.processReplace, textData)
+            if newText != textData:
+                with open(localTmpFile, 'w', encoding='utf-8') as fp:
+                    fp.write(newText)
+        except Exception as e:
+            raise Exception(G('process_file_fail').format(str(e)))
 
     def checkAndGetStatus(self):
         """
@@ -66,8 +112,8 @@ class CopyItem:
                 self.status = 4
                 if self.alistTaskId is not None:
                     try:
-                        self.alistClient.copyTaskCancel(self.alistTaskId)
-                        self.alistClient.copyTaskDelete(self.alistTaskId)
+                        self.srcAlistClient.copyTaskCancel(self.alistTaskId)
+                        self.srcAlistClient.copyTaskDelete(self.alistTaskId)
                     except Exception as e:
                         self.status = 7
                         self.errMsg = str(e)
@@ -75,7 +121,7 @@ class CopyItem:
             cuTime = time.time()
             time.sleep(0.61 if cuTime - self.jobTask.lastWatching < 3 else 2.93)
             try:
-                taskInfo = self.alistClient.taskInfo(self.alistTaskId)
+                taskInfo = self.srcAlistClient.taskInfo(self.alistTaskId)
             except Exception as e:
                 logger = logging.getLogger()
                 logger.exception(e)
@@ -95,7 +141,7 @@ class CopyItem:
             # 删除结束的任务
             if taskInfo['state'] in [2, 4, 7]:
                 try:
-                    self.alistClient.copyTaskDelete(self.alistTaskId)
+                    self.srcAlistClient.copyTaskDelete(self.alistTaskId)
                     break
                 except Exception:
                     break
@@ -103,7 +149,7 @@ class CopyItem:
     def endIt(self):
         if self.copyType == 2 and self.status == 2:
             try:
-                self.alistClient.deleteFile(self.srcPath, [self.fileName], self.jobTask.job['scanIntervalS'])
+                self.srcAlistClient.deleteFile(self.srcPath, [self.fileName], self.jobTask.job['scanIntervalS'])
             except Exception as e:
                 self.status = 7
                 self.errMsg = G('copy_success_but_delete_fail').format(str(e))
@@ -122,7 +168,22 @@ class JobTask:
         self.taskId = taskId
         self.jobClient = vm
         self.job = self.jobClient.job
-        self.alistClient = alistService.getClientById(self.job['alistId'])
+        self.copySyncType = self.job.get('copyType', 0)
+        self.processEnable = int(self.job.get('processEnable', 0))
+        self.processFind = self.job.get('processFind', None)
+        self.processReplace = self.job.get('processReplace', '')
+        self.processPattern = None
+        self.processTypes = []
+        if self.job.get('processTypes', None):
+            self.processTypes = [item.strip().lower() for item in self.job['processTypes'].split(':') if item.strip()]
+        if self.processEnable == 1 and self.processFind:
+            self.processPattern = re.compile(self.processFind)
+        self.srcAlistClient = alistService.getClientById(self.job['alistId'])
+        dstAlistId = self.job.get('dstAlistId', None) or self.job['alistId']
+        self.dstAlistClient = alistService.getClientById(dstAlistId)
+        self.maxCacheBytes = int(getConfig()['server']['copy_cache_max_mb']) * 1024 * 1024
+        self.tempDir = os.path.join('data', 'tmp', f"job_task_{self.taskId}")
+        os.makedirs(self.tempDir, exist_ok=True)
         self.createTime = time.time()
         # 已完成（包含成功或者失败）
         self.finish = []
@@ -145,6 +206,15 @@ class JobTask:
         self.currentTasks = {}
         submitThread = threading.Thread(target=self.taskSubmit)
         submitThread.start()
+
+    def fileTypeMatched(self, fileName):
+        if not self.processTypes:
+            return False
+        fileNameLower = fileName.lower()
+        for suffix in self.processTypes:
+            if fileNameLower.endswith(suffix):
+                return True
+        return False
 
     def getCurrent(self):
         """
@@ -261,7 +331,8 @@ class JobTask:
             doingNums = len(self.doing.keys())
             waitingNums = len(self.waiting)
             if not self.scanFinish or doingNums != 0 or waitingNums != 0:
-                while doingNums < 20:
+                maxParallel = 1 if self.copySyncType == 1 else 20
+                while doingNums < maxParallel:
                     if self.breakFlag:
                         break
                     if waitingNums == 0:
@@ -277,12 +348,10 @@ class JobTask:
                         waitingNums = len(self.waiting)
             else:
                 break
-        tryTime = 0
         while len(self.doing.keys()) > 0:
-            tryTime += 1
             time.sleep(.5)
-            if tryTime > 3:
-                break
+        if os.path.exists(self.tempDir):
+            shutil.rmtree(self.tempDir, ignore_errors=True)
         jobMapper.addJobTaskItemMany(self.finish)
         self.updateTaskStatus()
         self.jobClient.jobDoing = False
@@ -375,6 +444,11 @@ class JobTask:
         """
         if self.breakFlag:
             return
+        if self.copySyncType == 1 and fileSize is not None and fileSize > self.maxCacheBytes:
+            self.copyHook(srcPath, dstPath, fileName, fileSize, status=7,
+                          errMsg=G('copy_cache_too_small_skip').format(fileSize, self.maxCacheBytes),
+                          copyType=0)
+            return
         copyItem = CopyItem(srcPath, dstPath, fileName, fileSize, self.job['method'], self)
         self.waiting.append(copyItem)
 
@@ -396,7 +470,7 @@ class JobTask:
         errMsg = None
         createTime = int(time.time())
         try:
-            self.alistClient.deleteFile(path, [fileName if not isPath else fileName[:-1]], self.job['scanIntervalT'])
+            self.dstAlistClient.deleteFile(path, [fileName if not isPath else fileName[:-1]], self.job['scanIntervalT'])
         except Exception as e:
             status = 7
             errMsg = str(e)
@@ -418,8 +492,9 @@ class JobTask:
         """
         useCache = 1 if isSrc and not firstDst else self.job[f"useCache{'S' if isSrc else 'T'}"]
         scanInterval = self.job[f"scanInterval{'S' if isSrc else 'T'}"]
+        client = self.srcAlistClient if isSrc else self.dstAlistClient
         try:
-            return self.alistClient.fileListApi(path, useCache, scanInterval, spec, rootPath)
+            return client.fileListApi(path, useCache, scanInterval, spec, rootPath)
         except Exception as e:
             logger = logging.getLogger()
             errMsg = G('scan_error').format(G('src' if isSrc else 'dst'), str(e))
@@ -485,7 +560,7 @@ class JobTask:
         status = 2
         errMsg = None
         try:
-            self.alistClient.mkdir(dstPath, self.job['scanIntervalT'])
+            self.dstAlistClient.mkdir(dstPath, self.job['scanIntervalT'])
         except Exception as e:
             status = 7
             errMsg = str(e)
@@ -527,6 +602,20 @@ class JobClient:
             job['enable'] = 1
         if 'method' not in job:
             job['method'] = 0
+        if 'copyType' not in job or job['copyType'] is None:
+            job['copyType'] = 0
+        if 'dstAlistId' not in job or job['dstAlistId'] is None:
+            job['dstAlistId'] = job['alistId']
+        if 'processEnable' not in job or job['processEnable'] is None:
+            job['processEnable'] = 0
+        if 'processTypes' not in job:
+            job['processTypes'] = None
+        if 'processFind' not in job:
+            job['processFind'] = None
+        if 'processReplace' not in job:
+            job['processReplace'] = None
+        if job['processEnable'] == 1 and job['processReplace'] is None:
+            job['processReplace'] = ''
         if 'id' not in job:
             addJobId = jobMapper.addJob(job)
             job = jobMapper.getJobById(addJobId)

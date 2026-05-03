@@ -185,6 +185,7 @@
 	.login {
 		display: flex;
 		align-items: center;
+		justify-content: center;
 		position: fixed;
 		top: 0;
 		bottom: 0;
@@ -193,6 +194,7 @@
 		background-size: cover;
 		background-position: center;
 		background-repeat: no-repeat;
+		padding: 20px;
 		
 		.theme-toggle {
 			position: absolute;
@@ -203,35 +205,48 @@
 			color: #409eff;
 			transition: all 0.3s ease;
 			z-index: 1000;
+			padding: 10px;
+			border-radius: 50%;
+			background: rgba(0, 0, 0, 0.1);
+			backdrop-filter: blur(10px);
 			
 			&:hover {
-				transform: scale(1.2);
+				transform: scale(1.1);
+				background: rgba(64, 158, 255, 0.2);
 			}
 		}
 
 		.loginArea {
 			background: rgba(16, 30, 65, 0.95);
-			width: 520px;
+			width: 100%;
+			max-width: 520px;
 			box-sizing: border-box;
-			padding: 30px 60px;
-			border-radius: 4px;
-			margin-left: 5%;
+			padding: 40px 60px;
+			border-radius: 8px;
 			color: var(--text-primary);
 			position: relative;
+			box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+			backdrop-filter: blur(10px);
 
 			:deep(.el-input) {
-				font-size: 20px;
+				font-size: 16px;
 
 				.el-input__inner {
-					background-color: transparent;
+					background-color: var(--bg-input);
 					color: var(--text-primary);
-					height: 60px;
-					font-size: 20px;
+					height: 50px;
+					font-size: 16px;
 					border: 1px solid var(--border-light);
+					transition: all 0.3s ease;
 				}
 
 				.el-input__inner:focus {
 					border: 1px solid #409eff;
+					box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.1);
+				}
+
+				.el-input__inner::placeholder {
+					color: var(--text-placeholder);
 				}
 			}
 
@@ -244,40 +259,50 @@
 			}
 
 			:deep(.el-form-item) {
-				margin-bottom: 28px;
+				margin-bottom: 24px;
 
 				.el-form-item__error {
-					font-size: 16px;
+					font-size: 14px;
 					color: #F56C6C;
+					padding-top: 4px;
 				}
 			}
 
 			:deep(.el-button--primary) {
-				font-size: 20px;
-				padding: 19px 20px;
+				font-size: 18px;
+				padding: 16px 20px;
+				border-radius: 4px;
+				transition: all 0.3s ease;
+
+				&:hover {
+					transform: translateY(-2px);
+					box-shadow: 0 4px 12px rgba(64, 158, 255, 0.4);
+				}
 			}
 
 			.logo {
 				background-image: url('/logo-200-64.png');
 				background-position: center 0;
 				background-repeat: no-repeat;
-				width: 400px;
+				background-size: contain;
+				width: 100%;
 				padding-top: 80px;
 				text-align: center;
-				letter-spacing: 6px;
+				letter-spacing: 4px;
 				font-size: 20px;
+				font-weight: 500;
 			}
 
 			.title {
-				margin-top: 60px;
+				margin-top: 50px;
 				font-size: 24px;
-				font-weight: 500;
+				font-weight: 600;
 				color: var(--text-primary);
 				line-height: 28px;
 				text-align: center;
-				padding-bottom: 13px;
+				padding-bottom: 16px;
 				border-bottom: 1px solid rgba(238, 238, 238, 0.2);
-				margin-bottom: 43px;
+				margin-bottom: 40px;
 				position: relative;
 
 				&::after {
@@ -288,7 +313,7 @@
 					background: url(~@/assets/img/login-line-rectangle.png);
 					margin: 0 auto;
 					position: absolute;
-					bottom: 0;
+					bottom: -3px;
 					left: 50%;
 					transform: translateX(-50%);
 				}
@@ -296,24 +321,84 @@
 
 			.login-button {
 				width: 100%;
-				margin: 20px 0 20px 0;
+				margin: 24px 0 16px 0;
 			}
 
 			.foget {
 				text-align: right;
 				cursor: pointer;
 				color: #409eff;
+				font-size: 14px;
+				transition: color 0.3s ease;
+				margin-top: 8px;
+
+				&:hover {
+					color: #66b1ff;
+					text-decoration: underline;
+				}
 			}
+		}
+	}
+
+	// 响应式设计
+	@media (max-width: 768px) {
+		.login {
+			padding: 16px;
 
 			.theme-toggle {
-				position: absolute;
-				top: 20px;
-				right: 20px;
-				cursor: pointer;
-				padding: 10px;
-				
-				i {
-					font-size: 28px;
+				top: 16px;
+				right: 16px;
+				font-size: 24px;
+				padding: 8px;
+			}
+
+			.loginArea {
+				padding: 32px 24px;
+				max-width: 100%;
+
+				.logo {
+					font-size: 18px;
+					padding-top: 60px;
+					letter-spacing: 2px;
+				}
+
+				.title {
+					font-size: 20px;
+					margin-top: 40px;
+					margin-bottom: 32px;
+				}
+
+				:deep(.el-input) {
+					font-size: 14px;
+
+					.el-input__inner {
+						height: 44px;
+						font-size: 14px;
+					}
+				}
+
+				:deep(.el-button--primary) {
+					font-size: 16px;
+					padding: 14px 20px;
+				}
+			}
+		}
+	}
+
+	@media (max-width: 480px) {
+		.login {
+			.loginArea {
+				padding: 24px 20px;
+
+				.logo {
+					font-size: 16px;
+					padding-top: 50px;
+				}
+
+				.title {
+					font-size: 18px;
+					margin-top: 32px;
+					margin-bottom: 24px;
 				}
 			}
 		}

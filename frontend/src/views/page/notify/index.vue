@@ -407,14 +407,23 @@
 <style lang="scss">
 	.tip-box {
 		margin: 0 0 20px 100px;
-		color: #909bd4;
+		padding: 12px;
+		background-color: rgba(64, 158, 255, 0.1);
+		border-left: 3px solid #409eff;
+		border-radius: 4px;
+		color: var(--text-muted);
+		font-size: 13px;
+		line-height: 1.6;
 
 		a {
 			color: #409eff;
+			text-decoration: none;
+			font-weight: 500;
 		}
 
 		a:hover {
 			color: #66b1ff;
+			text-decoration: underline;
 		}
 	}
 
@@ -431,69 +440,133 @@
 
 		.card-box {
 			box-sizing: border-box;
-			padding: 8px;
+			padding: 16px;
 			display: grid;
-			grid-template-columns: repeat(auto-fill, minmax(380px, 2fr));
+			grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+			gap: 16px;
 			width: 100%;
+			height: 100%;
+			overflow-y: auto;
 
 			.card-item {
-				background-color: #292b3c;
-				border-radius: 5px;
-				border: 1px solid;
-				border-color: transparent;
-				height: 110px;
-				margin: 8px;
-				padding: 6px;
+				background-color: var(--bg-tertiary);
+				border-radius: 8px;
+				border: 2px solid transparent;
+				height: 140px;
+				padding: 16px;
+				transition: all 0.3s ease;
+				display: flex;
+				flex-direction: column;
+				justify-content: space-between;
 
 				.card-item-top {
 					display: flex;
 					align-items: center;
-					justify-content: center;
+					flex: 1;
 
 					.card-item-user {
 						font-size: 18px;
-						display: flex;
+						font-weight: 600;
+						color: var(--text-primary);
+						margin-bottom: 8px;
 					}
 
 					.card-item-enable {
-						margin-top: 6px;
-						font-weight: bold;
+						margin-top: 4px;
+						font-weight: 600;
+						font-size: 14px;
+						padding: 4px 12px;
+						border-radius: 12px;
+						display: inline-block;
 					}
 
 					.enable-enable {
 						color: #67c23a;
+						background-color: rgba(103, 194, 58, 0.1);
 					}
 
 					.enable-disable {
 						color: #f56c6c;
+						background-color: rgba(245, 108, 108, 0.1);
 					}
 				}
 
 				.card-item-bottom {
 					display: flex;
 					align-items: center;
-					justify-content: center;
-					margin-top: 12px;
+					justify-content: flex-end;
+					gap: 8px;
+					padding-top: 12px;
+					border-top: 1px solid var(--border-color);
+					flex-wrap: wrap;
 				}
 			}
 
 			.card-add {
-				font-size: 32px;
+				font-size: 24px;
 				cursor: pointer;
 				display: flex;
 				justify-content: center;
 				align-items: center;
+				color: var(--text-muted);
+				font-weight: 500;
+				transition: all 0.3s ease;
+
+				span {
+					transition: all 0.3s ease;
+				}
 			}
 
 			.card-item:hover {
 				border-color: #409eff;
-				background-color: #3d415a;
+				background-color: var(--bg-input);
+				transform: translateY(-2px);
+				box-shadow: 0 4px 12px rgba(64, 158, 255, 0.2);
 			}
 
 			.card-add:hover {
-				font-size: 32px;
 				color: #409eff;
-				font-weight: bold;
+				background-color: var(--bg-input);
+				border-color: #409eff;
+				
+				span {
+					transform: scale(1.1);
+				}
+			}
+		}
+	}
+
+	// 响应式设计
+	@media (max-width: 768px) {
+		.tip-box {
+			margin: 0 0 16px 0;
+			padding: 10px;
+			font-size: 12px;
+		}
+
+		.notify {
+			.card-box {
+				grid-template-columns: 1fr;
+				padding: 12px;
+				gap: 12px;
+
+				.card-item {
+					height: auto;
+					min-height: 120px;
+
+					.card-item-top {
+						flex-direction: column;
+						align-items: flex-start;
+
+						.card-item-user {
+							font-size: 16px;
+						}
+					}
+
+					.card-item-bottom {
+						justify-content: center;
+					}
+				}
 			}
 		}
 	}

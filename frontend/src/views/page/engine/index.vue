@@ -73,19 +73,27 @@
 					url: [{
 						required: true,
 						message: '请输入地址',
-						trgger: 'blur'
+						trigger: 'blur'
+					}, {
+						pattern: /^https?:\/\/.+/,
+						message: '请输入有效的HTTP/HTTPS地址',
+						trigger: 'blur'
 					}]
 				},
 				addRule: {
 					url: [{
 						required: true,
 						message: '请输入地址',
-						trgger: 'blur'
+						trigger: 'blur'
+					}, {
+						pattern: /^https?:\/\/.+/,
+						message: '请输入有效的HTTP/HTTPS地址',
+						trigger: 'blur'
 					}],
 					token: [{
 						required: true,
 						message: '请输入令牌，请到AList管理-设置-其他中复制，保存后不要重置令牌否则令牌失效',
-						trgger: 'blur'
+						trigger: 'blur'
 					}]
 				}
 			};
@@ -177,6 +185,8 @@
 				});
 			},
 			ensureHttpPrefix(url) {
+				if (!url) return url;
+				url = url.trim();
 				if (!/^https?:\/\//i.test(url)) {
 					if (url.startsWith('//')) {
 						return 'http:' + url;
@@ -203,73 +213,139 @@
 
 		.card-box {
 			box-sizing: border-box;
-			padding: 8px;
+			padding: 16px;
 			display: grid;
-			grid-template-columns: repeat(auto-fill, minmax(340px, 2fr));
+			grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+			gap: 16px;
 			width: 100%;
+			height: 100%;
+			overflow-y: auto;
 
 			.card-item {
-				background-color: #292b3c;
-				border-radius: 5px;
-				border: 1px solid;
-				border-color: transparent;
-				height: 110px;
-				margin: 8px;
-				padding: 6px;
+				background-color: var(--bg-tertiary);
+				border-radius: 8px;
+				border: 2px solid transparent;
+				height: 140px;
+				padding: 16px;
+				transition: all 0.3s ease;
+				display: flex;
+				flex-direction: column;
+				justify-content: space-between;
 
 				.card-item-top {
 					display: flex;
 					align-items: center;
-					justify-content: center;
+					flex: 1;
 
 					.card-item-user {
 						font-size: 18px;
+						font-weight: 600;
 						display: flex;
+						align-items: center;
+						color: var(--text-primary);
+						margin-bottom: 8px;
 
 						.card-item-remark {
-							margin-left: 6px;
-							color: #d6d12f;
-							max-width: 120px;
+							margin-left: 8px;
+							color: #e6a23c;
+							font-size: 14px;
+							font-weight: 400;
+							max-width: 150px;
 							white-space: nowrap;
 							overflow: hidden;
 							text-overflow: ellipsis;
+							padding: 2px 8px;
+							background: rgba(230, 162, 60, 0.1);
+							border-radius: 4px;
 						}
 					}
 
 					.card-item-url {
-						margin-top: 8px;
-						font-size: 12px;
+						margin-top: 4px;
+						font-size: 13px;
+						color: var(--text-muted);
+						word-break: break-all;
 					}
 				}
 
 				.card-item-bottom {
 					display: flex;
 					align-items: center;
-					justify-content: center;
-					margin-top: 12px;
+					justify-content: flex-end;
+					gap: 8px;
+					padding-top: 12px;
+					border-top: 1px solid var(--border-color);
 				}
 			}
 
 			.card-add {
-				font-size: 32px;
+				font-size: 24px;
 				cursor: pointer;
 				display: flex;
 				justify-content: center;
 				align-items: center;
+				color: var(--text-muted);
+				font-weight: 500;
+				transition: all 0.3s ease;
+
+				span {
+					transition: all 0.3s ease;
+				}
 			}
 
 			.card-item:hover {
 				border-color: #409eff;
-				background-color: #3d415a;
+				background-color: var(--bg-input);
+				transform: translateY(-2px);
+				box-shadow: 0 4px 12px rgba(64, 158, 255, 0.2);
 			}
 
 			.card-add:hover {
-				font-size: 32px;
 				color: #409eff;
-				font-weight: bold;
+				background-color: var(--bg-input);
+				border-color: #409eff;
+				
+				span {
+					transform: scale(1.1);
+				}
 			}
 		}
+	}
 
+	// 响应式设计
+	@media (max-width: 768px) {
+		.engine {
+			.card-box {
+				grid-template-columns: 1fr;
+				padding: 12px;
+				gap: 12px;
 
+				.card-item {
+					height: auto;
+					min-height: 120px;
+
+					.card-item-top {
+						flex-direction: column;
+						align-items: flex-start;
+
+						.card-item-user {
+							font-size: 16px;
+							flex-wrap: wrap;
+
+							.card-item-remark {
+								margin-left: 0;
+								margin-top: 4px;
+								max-width: 100%;
+							}
+						}
+					}
+
+					.card-item-bottom {
+						justify-content: center;
+						flex-wrap: wrap;
+					}
+				}
+			}
+		}
 	}
 </style>

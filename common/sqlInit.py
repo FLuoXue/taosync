@@ -4,7 +4,7 @@ from common import sqlBase
 
 @sqlBase.connect_sql
 def init_sql(conn):
-    cuVersion = 250608
+    cuVersion = 260504
     cursor = conn.cursor()
     cursor.execute("SELECT name FROM sqlite_master WHERE name='user_list'")
     passwd = None
@@ -34,11 +34,17 @@ def init_sql(conn):
                        "srcPath text,"                      # 来源目录，结尾有无斜杠都可，建议有斜杠
                        "dstPath text,"                      # 目标目录，结尾有无斜杠都可，建议有斜杠，多个以英文冒号[:]分隔
                        "alistId integer,"                   # 引擎id，alist_list.id
+                       "dstAlistId integer,"                # 目标引擎id，默认同alistId
                        "useCacheT integer DEFAULT 0,"       # 扫描目标目录时，是否使用缓存，0-不使用，1-使用
                        "scanIntervalT integer DEFAULT 0,"   # 目标目录扫描间隔，单位秒
                        "useCacheS integer DEFAULT 0,"       # 扫描源目录时，是否使用缓存，0-不使用，1-使用
                        "scanIntervalS integer DEFAULT 0,"   # 源目录扫描间隔，单位秒
                        "method integer,"                    # 同步方式，0-仅新增，1-全同步，2-移动模式
+                       "copyType integer DEFAULT 0,"        # 复制方式，0-远端复制，1-本地中转
+                       "processEnable integer DEFAULT 0,"   # 本地中转文件处理开关，0-关闭，1-开启
+                       "processTypes text DEFAULT NULL,"     # 处理匹配的文件后缀，英文冒号分隔，如.txt:.md
+                       "processFind text DEFAULT NULL,"      # 替换查找规则（正则）
+                       "processReplace text DEFAULT NULL,"   # 替换内容
                        "interval integer,"                  # 同步间隔，单位：分钟
                        "isCron integer DEFAULT 0,"          # 是否使用cron，0-使用interval, 1-使用cron，2-仅手动
                        "year text DEFAULT NULL,"            # 四位数的年份
@@ -137,6 +143,15 @@ def init_sql(conn):
                 cursor.execute("alter table job add column useCacheS integer DEFAULT 0")
                 cursor.execute("alter table job add column scanIntervalS integer DEFAULT 0")
                 cursor.execute("update job set scanIntervalT = 10, useCacheT = 0 where useCacheT = 2")
+            if sqlVersion < 260503:
+                cursor.execute("alter table job add column dstAlistId integer")
+                cursor.execute("alter table job add column copyType integer DEFAULT 0")
+                cursor.execute("update job set dstAlistId = alistId where dstAlistId is null")
+            if sqlVersion < 260504:
+                cursor.execute("alter table job add column processEnable integer DEFAULT 0")
+                cursor.execute("alter table job add column processTypes text DEFAULT NULL")
+                cursor.execute("alter table job add column processFind text DEFAULT NULL")
+                cursor.execute("alter table job add column processReplace text DEFAULT NULL")
             cursor.execute(f"update user_list set sqlVersion={cuVersion}")
             conn.commit()
     cursor.close()

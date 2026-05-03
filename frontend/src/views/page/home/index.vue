@@ -16,10 +16,43 @@
 					<div class="form-box">
 						<div class="form-box-item">
 							<div class="form-box-item-label">
+								源引擎
+							</div>
+							<div class="form-box-item-value">
+								{{getAlistText(props.row.alistId)}}
+							</div>
+						</div>
+						<div class="form-box-item">
+							<div class="form-box-item-label">
+								目标引擎
+							</div>
+							<div class="form-box-item-value">
+								{{getAlistText(props.row.dstAlistId || props.row.alistId)}}
+							</div>
+						</div>
+						<div class="form-box-item">
+							<div class="form-box-item-label">
 								同步方式
 							</div>
 							<div class="form-box-item-value">
 								{{props.row.method == 0 ? '仅新增' : (props.row.method == 1 ? '全同步': '移动模式')}}
+							</div>
+						</div>
+						<div class="form-box-item">
+							<div class="form-box-item-label">
+								复制方式
+							</div>
+							<div class="form-box-item-value">
+								{{props.row.copyType == 1 ? '本地中转复制（单线程）' : '远端复制'}}
+							</div>
+						</div>
+						<div class="form-box-item" v-if="props.row.copyType == 1">
+							<div class="form-box-item-label">
+								文件处理
+							</div>
+							<div class="form-box-item-value">
+								{{props.row.processEnable == 1 ? '开启' : '关闭'}}
+								<span v-if="props.row.processEnable == 1">；匹配类型：{{props.row.processTypes || '-'}}</span>
 							</div>
 						</div>
 						<div class="form-box-item">
@@ -159,8 +192,21 @@
 								<span v-else>启用</span>
 							</div>
 						</el-form-item>
-						<el-form-item prop="alistId" label="引擎">
+						<el-form-item prop="alistId" label="源引擎">
 							<el-select v-model="editData.alistId" placeholder="请选择引擎" class="label_width"
+								@change="srcAlistChange"
+								no-data-text="暂无引擎,请前往引擎管理创建">
+								<el-option v-for="item in alistList" :label="item.url" :value="item.id">
+									<span
+										style="float: left;margin-right: 16px;">{{item.url}}{{item.remark != null ? `[${item.remark}]` : ''}}</span>
+									<span
+										style="float: right; color: #7b9dad; font-size: 13px;">{{item.userName}}</span>
+								</el-option>
+							</el-select>
+						</el-form-item>
+						<el-form-item prop="dstAlistId" label="目标引擎">
+							<el-select v-model="editData.dstAlistId" placeholder="请选择引擎" class="label_width"
+								@change="dstAlistChange"
 								no-data-text="暂无引擎,请前往引擎管理创建">
 								<el-option v-for="item in alistList" :label="item.url" :value="item.id">
 									<span
@@ -180,7 +226,7 @@
 							</div>
 						</el-form-item>
 						<el-form-item prop="dstPath" label="目标目录">
-							<div v-if="editData.alistId == null" class="label_width">请先选择引擎</div>
+							<div v-if="editData.dstAlistId == null" class="label_width">请先选择引擎</div>
 							<div v-else class="label_width">
 								<div class="label-list-box">
 									<div v-for="(item, index) in editData.dstPath" class="label-list-item">
@@ -194,6 +240,42 @@
 								</div>
 							</div>
 						</el-form-item>
+						<el-form-item prop="copyType" label="复制方式">
+							<el-select v-model="editData.copyType" class="label_width" @change="copyTypeChange">
+								<el-option label="远端复制" :value="0">
+									<span style="float: left;margin-right: 16px;">远端复制</span>
+									<span style="float: right; color: #7b9dad; font-size: 13px;">同一引擎内由 OpenList 直接复制</span>
+								</el-option>
+								<el-option label="本地中转复制" :value="1">
+									<span style="float: left;margin-right: 16px;">本地中转复制</span>
+									<span style="float: right; color: #7b9dad; font-size: 13px;">下载到本地临时目录后再上传，支持跨引擎</span>
+								</el-option>
+							</el-select>
+						</el-form-item>
+						<template v-if="editData.copyType == 1">
+							<el-form-item prop="processEnable" label="文件处理开关">
+								<div class="label_width">
+									<el-switch v-model="editData.processEnable" :active-value="1" :inactive-value="0"></el-switch>
+								</div>
+							</el-form-item>
+							<template v-if="editData.processEnable == 1">
+								<el-form-item prop="processTypes" label="匹配文件类型">
+									<div class="label_width_2">
+										<el-input v-model="editData.processTypes" placeholder="多个后缀用英文冒号分隔，例如 .txt:.md:.json"></el-input>
+									</div>
+								</el-form-item>
+								<el-form-item prop="processFind" label="替换查找规则">
+									<div class="label_width_2">
+										<el-input v-model="editData.processFind" placeholder="正则表达式，例如 foo|bar"></el-input>
+									</div>
+								</el-form-item>
+								<el-form-item prop="processReplace" label="替换内容">
+									<div class="label_width_2">
+										<el-input type="textarea" :rows="3" v-model="editData.processReplace" placeholder="替换为"></el-input>
+									</div>
+								</el-form-item>
+							</template>
+						</template>
 						<el-form-item prop="remark" label="作业名称">
 							<div class="label_width">
 								<el-input v-model="editData.remark" placeholder="用来标识你的作业，选填"></el-input>
@@ -331,7 +413,7 @@
 				<el-button type="primary" @click="submitDisable" :loading="editLoading">确 定</el-button>
 			</span>
 		</el-dialog>
-		<pathSelect v-if="editData" :alistId="editData.alistId" ref="pathSelect" @submit="submitPath"></pathSelect>
+		<pathSelect v-if="editData" :alistId="cuPathAlistId" ref="pathSelect" @submit="submitPath"></pathSelect>
 	</div>
 </template>
 
@@ -398,6 +480,7 @@
 				btnLoading: false,
 				editLoading: false,
 				editData: null,
+				cuPathAlistId: null,
 				excludeTmp: '',
 				editShow: false,
 				disableShow: false,
@@ -424,6 +507,12 @@
 						message: '请选择引擎',
 						trgger: 'change'
 					}],
+					dstAlistId: [{
+						type: 'number',
+						required: true,
+						message: '请选择目标引擎',
+						trgger: 'change'
+					}],
 					scanIntervalT: [{
 						required: true,
 						pattern: /^(0|[1-9]\d*)$/,
@@ -441,6 +530,7 @@
 		},
 		created() {
 			this.getJobList();
+			this.getAlistList();
 		},
 		beforeDestroy() {},
 		methods: {
@@ -475,12 +565,40 @@
 			},
 			selectPath(isSrc) {
 				this.cuIsSrc = isSrc;
+				this.cuPathAlistId = isSrc ? this.editData.alistId : this.editData.dstAlistId;
 				this.$refs.pathSelect.show();
+			},
+			srcAlistChange() {
+				this.editData.srcPath = '';
+				if (this.editData.copyType == 0) {
+					this.editData.dstAlistId = this.editData.alistId;
+					this.editData.dstPath = [];
+				}
+			},
+			dstAlistChange() {
+				this.editData.dstPath = [];
+			},
+			copyTypeChange() {
+				if (this.editData.copyType == 0) {
+					this.editData.dstAlistId = this.editData.alistId;
+					this.editData.dstPath = [];
+					this.editData.processEnable = 0;
+					this.editData.processTypes = '';
+					this.editData.processFind = '';
+					this.editData.processReplace = '';
+				}
 			},
 			getAlistList() {
 				alistGet().then(res => {
 					this.alistList = res.data;
 				})
+			},
+			getAlistText(alistId) {
+				let cu = this.alistList.find(item => item.id == alistId);
+				if (cu) {
+					return `${cu.url}${cu.remark != null ? `[${cu.remark}]` : ''}`;
+				}
+				return alistId;
 			},
 			toCron() {
 				window.open('https://dr34m.cn/2024/08/newpost-58/', '_blank');
@@ -527,12 +645,31 @@
 				}
 				this.excludeTmp = '';
 				this.editData = JSON.parse(JSON.stringify(row));
+				if (this.editData.copyType == null) {
+					this.editData.copyType = 0;
+				}
+				if (this.editData.processEnable == null) {
+					this.editData.processEnable = 0;
+				}
+				if (this.editData.processTypes == null) {
+					this.editData.processTypes = '';
+				}
+				if (this.editData.processFind == null) {
+					this.editData.processFind = '';
+				}
+				if (this.editData.processReplace == null) {
+					this.editData.processReplace = '';
+				}
+				if (this.editData.dstAlistId == null) {
+					this.editData.dstAlistId = this.editData.alistId;
+				}
 				this.editData.dstPath = this.editData.dstPath.split(':');
 				if (this.editData.exclude) {
 					this.editData.exclude = this.editData.exclude.split(':');
 				} else {
 					this.editData.exclude = [];
 				}
+				this.cuPathAlistId = this.editData.alistId;
 				this.editShow = true;
 			},
 			addShow() {
@@ -545,11 +682,17 @@
 					srcPath: '',
 					dstPath: [],
 					alistId: null,
+					dstAlistId: null,
 					useCacheT: 1,
 					scanIntervalT: 1,
 					useCacheS: 0,
 					scanIntervalS: 0,
 					method: 0,
+					copyType: 0,
+					processEnable: 0,
+					processTypes: '',
+					processFind: '',
+					processReplace: '',
 					interval: 1440,
 					isCron: 0,
 					exclude: []
@@ -558,6 +701,7 @@
 					editData[item.label] = null;
 				})
 				this.editData = editData;
+				this.cuPathAlistId = null;
 				this.excludeTmp = '';
 				this.editShow = true;
 			},
@@ -588,7 +732,7 @@
 					if (valid) {
 						let postData = JSON.parse(JSON.stringify(this.editData));
 						for (let i in postData) {
-							if (postData[i] === '') {
+							if (postData[i] === '' && i != 'processReplace') {
 								postData[i] = null;
 							}
 						}
@@ -607,6 +751,36 @@
 								this.$message.error("选择cron方式时，至少有一项不能为空");
 								return
 							}
+						}
+						if (postData.copyType == 0 && postData.alistId != postData.dstAlistId) {
+							this.$message.error("远端复制仅支持同一引擎，跨引擎请使用本地中转复制");
+							return
+						}
+						if (postData.copyType != 1) {
+							postData.processEnable = 0;
+						}
+						if (postData.processEnable == 1) {
+							if (postData.processTypes == null || postData.processTypes.trim() == '') {
+								this.$message.error("开启文件处理后，匹配文件类型必填");
+								return
+							}
+							if (postData.processFind == null || postData.processFind.trim() == '') {
+								this.$message.error("开启文件处理后，替换查找规则必填");
+								return
+							}
+							try {
+								new RegExp(postData.processFind);
+							} catch (e) {
+								this.$message.error("替换查找规则不是有效的正则表达式");
+								return
+							}
+							if (postData.processReplace == null) {
+								postData.processReplace = '';
+							}
+						} else {
+							postData.processTypes = null;
+							postData.processFind = null;
+							postData.processReplace = null;
 						}
 						postData.dstPath = postData.dstPath.join(':');
 						postData.exclude = postData.exclude.join(':');

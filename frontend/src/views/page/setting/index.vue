@@ -1,32 +1,95 @@
 <template>
 	<div class="user">
-		<div class="user-info">
-			<template v-if="vuex_userInfo">
-				<div class="item">
-					<div class="label">用户名</div>
-					<div class="value">{{vuex_userInfo.userName}}</div>
+		<div class="settings-container">
+			<!-- 用户信息卡片 -->
+			<div class="setting-card">
+				<div class="card-title">用户信息</div>
+				<div class="card-content" v-if="vuex_userInfo">
+					<div class="info-item">
+						<div class="info-label">用户名</div>
+						<div class="info-value">{{vuex_userInfo.userName}}</div>
+					</div>
+					<div class="info-item">
+						<div class="info-label">创建时间</div>
+						<div class="info-value">{{vuex_userInfo.createTime | timeStampFilter}}</div>
+					</div>
 				</div>
-				<div class="item">
-					<div class="label">创建时间</div>
-					<div class="value">{{vuex_userInfo.createTime | timeStampFilter}}</div>
+			</div>
+
+			<!-- 系统配置卡片 -->
+			<div class="setting-card">
+				<div class="card-title">系统配置</div>
+				<div class="card-content">
+					<div class="config-item">
+						<div class="config-label">本地中转缓存上限</div>
+						<div class="config-control">
+							<el-input 
+								v-model.number="sysConfig.copyCacheMaxMb" 
+								placeholder="请输入缓存上限" 
+								type="number"
+								:min="1"
+								style="width: 200px;">
+								<template slot="append">MB</template>
+							</el-input>
+							<el-button 
+								type="primary" 
+								size="small"
+								style="margin-left: 12px;" 
+								:loading="cacheSaving"
+								@click="saveCopyCacheMax">
+								保存
+							</el-button>
+						</div>
+					</div>
+					<div class="config-tip">
+						<i class="el-icon-info"></i>
+						设置本地中转复制时的缓存大小限制，建议根据磁盘空间合理设置
+					</div>
 				</div>
-				<el-form :model="resetForm" :rules="rules" ref="resetForm" label-width="0">
-					<el-form-item prop="oldPasswd">
-						<el-input class="input" placeholder="请输入旧密码" show-password
-							v-model="resetForm.oldPasswd"></el-input>
-					</el-form-item>
-					<el-form-item prop="passwd">
-						<el-input placeholder="请输入新密码" show-password v-model="resetForm.passwd"
-							show-password></el-input>
-					</el-form-item>
-					<el-form-item prop="passwd2">
-						<el-input placeholder="确认新密码" show-password v-model="resetForm.passwd2" show-password
-							@keyup.enter.native="resetPasswd"></el-input>
-					</el-form-item>
-				</el-form>
-				<el-button type="primary" :loading="loading" @click="resetPasswd">修改密码</el-button>
-			</template>
+			</div>
+
+			<!-- 修改密码卡片 -->
+			<div class="setting-card">
+				<div class="card-title">修改密码</div>
+				<div class="card-content">
+					<el-form :model="resetForm" :rules="rules" ref="resetForm" label-width="90px">
+						<el-form-item prop="oldPasswd" label="旧密码">
+							<el-input 
+								class="input" 
+								placeholder="请输入旧密码" 
+								show-password
+								v-model="resetForm.oldPasswd">
+							</el-input>
+						</el-form-item>
+						<el-form-item prop="passwd" label="新密码">
+							<el-input 
+								placeholder="请输入新密码" 
+								show-password 
+								v-model="resetForm.passwd">
+							</el-input>
+						</el-form-item>
+						<el-form-item prop="passwd2" label="确认密码">
+							<el-input 
+								placeholder="确认新密码" 
+								show-password 
+								v-model="resetForm.passwd2"
+								@keyup.enter.native="resetPasswd">
+							</el-input>
+						</el-form-item>
+						<el-form-item>
+							<el-button 
+								type="primary" 
+								:loading="loading" 
+								@click="resetPasswd">
+								修改密码
+							</el-button>
+							<el-button @click="resetPasswordForm">重置</el-button>
+						</el-form-item>
+					</el-form>
+				</div>
+			</div>
 		</div>
+
 		<div class="setting-bottom">
 			<div class="setting-bottom-item">TaoSync 版本：__version_placeholder__</div>
 			<div class="setting-bottom-item"><a href="https://github.com/dr34m-cn/taosync" target="_blank">项目地址（GitHub）</a></div>
@@ -39,6 +102,10 @@
 	import {
 		editPwd
 	} from "@/api/user";
+	import {
+		systemGet,
+		systemPut
+	} from "@/api/system";
 	export default {
 		name: 'User',
 		data() {
@@ -52,12 +119,16 @@
 				}
 			};
 			return {
+				sysConfig: {
+					copyCacheMaxMb: 1024
+				},
 				resetForm: {
 					oldPasswd: null,
 					passwd: null,
 					passwd2: null
 				},
 				loading: false,
+				cacheSaving: false,
 				rules: {
 					oldPasswd: [{
 						required: true,
@@ -76,8 +147,36 @@
 				}
 			};
 		},
-		created() {},
+		created() {
+			this.getSystemConfig();
+		},
 		methods: {
+			getSystemConfig() {
+				systemGet().then(res => {
+					this.sysConfig = res.data;
+				})
+			},
+			saveCopyCacheMax() {
+				if (!Number.isInteger(this.sysConfig.copyCacheMaxMb) || this.sysConfig.copyCacheMaxMb <= 0) {
+					this.$message.error('缓存上限必须是正整数(MB)');
+					return;
+				}
+				this.cacheSaving = true;
+				systemPut({
+					copyCacheMaxMb: this.sysConfig.copyCacheMaxMb
+				}).then(res => {
+					this.cacheSaving = false;
+					this.$message({
+						message: res.msg,
+						type: 'success'
+					});
+				}).catch(() => {
+					this.cacheSaving = false;
+				})
+			},
+			resetPasswordForm() {
+				this.$refs.resetForm.resetFields();
+			},
 			resetPasswd() {
 				this.$refs.resetForm.validate((valid) => {
 					if (valid) {
@@ -103,116 +202,191 @@
 
 <style lang="scss" scoped>
 	.user {
-		padding: 32px;
-		font-size: 16px;
+		padding: 24px;
+		font-size: 14px;
 		width: 100%;
+		height: 100%;
 		box-sizing: border-box;
+		overflow-y: auto;
+		position: relative;
+		padding-bottom: 80px;
 
-		.user-info {
-			padding: 24px 16px;
-			background-color: #292b3c;
-			width: 352px;
-			box-sizing: border-box;
-			border-radius: 3px;
-
-			.el-input,
-			.el-button {
-				width: 320px;
-			}
-
-			.item {
-				display: flex;
-				margin-bottom: 16px;
-
-				.label {
-					width: 70px;
-					text-align: justify;
-					margin-right: 16px;
-					color: #909bd4;
-				}
-
-				.label::after {
-					display: inline-block;
-					width: 100%;
-					content: "";
-				}
-			}
+		.settings-container {
+			max-width: 900px;
+			margin: 0 auto;
 		}
 
-		.setting-box {
+		.setting-card {
+			background-color: var(--bg-tertiary);
+			border-radius: 8px;
+			padding: 24px;
+			margin-bottom: 24px;
+			box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+			transition: all 0.3s ease;
 
-			.setting-box-box {
-				padding: 16px;
-				width: 320px;
-				margin-bottom: 32px;
-				background-color: #292b3c;
+			&:hover {
+				box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+			}
 
-				.setting-box-item {
-					width: 320px;
+			.card-title {
+				font-size: 18px;
+				font-weight: 600;
+				color: var(--text-primary);
+				margin-bottom: 20px;
+				padding-bottom: 12px;
+				border-bottom: 2px solid var(--border-color);
+			}
+
+			.card-content {
+				.info-item {
 					display: flex;
 					align-items: center;
 					margin-bottom: 16px;
+					padding: 8px 0;
 
-					.el-button {
-						width: 320px;
+					&:last-child {
+						margin-bottom: 0;
 					}
 
-					:deep(.el-input__inner) {
-						width: 224px;
+					.info-label {
+						min-width: 100px;
+						color: var(--text-muted);
+						font-weight: 500;
 					}
 
-					.label {
-						margin-right: 16px;
-						text-align: right;
-						min-width: 80px;
-						color: #909bd4;
+					.info-value {
+						color: var(--text-primary);
+						flex: 1;
+					}
+				}
+
+				.config-item {
+					margin-bottom: 16px;
+
+					.config-label {
+						color: var(--text-muted);
+						margin-bottom: 12px;
+						font-weight: 500;
+					}
+
+					.config-control {
+						display: flex;
+						align-items: center;
+						flex-wrap: wrap;
+						gap: 8px;
 					}
 				}
 
-				.setting-box-item:last-child {
-					margin-bottom: 0px;
-				}
+				.config-tip {
+					margin-top: 12px;
+					padding: 12px;
+					background-color: var(--bg-input);
+					border-radius: 4px;
+					color: var(--text-muted);
+					font-size: 13px;
+					line-height: 1.6;
+					display: flex;
+					align-items: flex-start;
 
-				.setting-tip {
-					color: #aaa;
-					font-size: 12px;
-
-					.tip-selected {
-						color: #fff;
-						font-size: 14px;
-						line-height: 20px;
+					i {
+						margin-right: 8px;
+						margin-top: 2px;
+						color: #409eff;
 					}
 				}
-			}
 
-			.setting-box-box:last-child {
-				margin-bottom: 0px;
+				.el-form {
+					max-width: 500px;
+
+					.el-input {
+						width: 100%;
+					}
+				}
 			}
 		}
 
 		.setting-bottom {
-			position: absolute;
-			bottom: 16px;
+			position: fixed;
+			bottom: 0;
 			left: 0;
 			right: 0;
+			padding: 16px;
+			background-color: var(--bg-secondary);
+			border-top: 1px solid var(--border-color);
 			display: flex;
 			align-items: center;
 			justify-content: center;
+			flex-wrap: wrap;
+			gap: 16px;
+			z-index: 10;
 
 			.setting-bottom-item {
-				margin-right: 16px;
+				font-size: 13px;
+				color: var(--text-muted);
 				
 				a {
 					color: #409eff;
+					text-decoration: none;
+					transition: color 0.3s ease;
 				}
 				
 				a:hover {
 					color: #66b1ff;
+					text-decoration: underline;
+				}
+			}
+		}
+	}
+
+	// 响应式设计
+	@media (max-width: 768px) {
+		.user {
+			padding: 16px;
+			padding-bottom: 100px;
+
+			.setting-card {
+				padding: 16px;
+
+				.card-title {
+					font-size: 16px;
+				}
+
+				.card-content {
+					.info-item {
+						flex-direction: column;
+						align-items: flex-start;
+
+						.info-label {
+							margin-bottom: 4px;
+						}
+					}
+
+					.config-item {
+						.config-control {
+							flex-direction: column;
+							align-items: stretch;
+
+							.el-input {
+								width: 100% !important;
+							}
+
+							.el-button {
+								margin-left: 0 !important;
+								width: 100%;
+							}
+						}
+					}
+
+					.el-form {
+						max-width: 100%;
+					}
 				}
 			}
 
-			.setting-bottom-item:last-child {
-				margin-right: 0;
+			.setting-bottom {
+				flex-direction: column;
+				gap: 8px;
+				padding: 12px;
 			}
 		}
 	}
