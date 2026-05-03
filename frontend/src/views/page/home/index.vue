@@ -57,6 +57,14 @@
 						</div>
 						<div class="form-box-item">
 							<div class="form-box-item-label">
+								文件对比模式
+							</div>
+							<div class="form-box-item-value">
+								{{(props.row.compareMode || 0) == 1 ? '仅文件名' : '文件名+大小'}}
+							</div>
+						</div>
+						<div class="form-box-item">
+							<div class="form-box-item-label">
 								目标目录扫描
 							</div>
 							<div class="form-box-item-value">
@@ -294,6 +302,18 @@
 								<el-option label="移动模式" :value="2">
 									<span style="float: left;margin-right: 16px;">移动模式</span>
 									<span style="float: right; color: #7b9dad; font-size: 13px;">同步完成后删除源目录所有文件</span>
+								</el-option>
+							</el-select>
+						</el-form-item>
+						<el-form-item prop="compareMode" label="文件对比模式">
+							<el-select v-model="editData.compareMode" class="label_width">
+								<el-option label="文件名+大小" :value="0">
+									<span style="float: left;margin-right: 16px;">文件名+大小</span>
+									<span style="float: right; color: #7b9dad; font-size: 13px;">当前默认逻辑，大小变化会触发同步</span>
+								</el-option>
+								<el-option label="仅文件名" :value="1">
+									<span style="float: left;margin-right: 16px;">仅文件名</span>
+									<span style="float: right; color: #7b9dad; font-size: 13px;">目标存在同名文件则跳过，适合文件处理场景</span>
 								</el-option>
 							</el-select>
 						</el-form-item>
@@ -651,6 +671,9 @@
 				if (this.editData.processEnable == null) {
 					this.editData.processEnable = 0;
 				}
+				if (this.editData.compareMode == null) {
+					this.editData.compareMode = 0;
+				}
 				if (this.editData.processTypes == null) {
 					this.editData.processTypes = '';
 				}
@@ -688,6 +711,7 @@
 					useCacheS: 0,
 					scanIntervalS: 0,
 					method: 0,
+					compareMode: 0,
 					copyType: 0,
 					processEnable: 0,
 					processTypes: '',

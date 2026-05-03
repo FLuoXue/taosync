@@ -70,6 +70,14 @@ def cleanJobInput(job):
         raise Exception(G('copy_type_cross_engine_only_local'))
     if 'processEnable' not in job or job['processEnable'] is None:
         job['processEnable'] = 0
+    if 'compareMode' not in job or job['compareMode'] is None:
+        job['compareMode'] = 0
+    try:
+        job['compareMode'] = int(job['compareMode'])
+    except Exception:
+        job['compareMode'] = 0
+    if job['compareMode'] not in [0, 1]:
+        job['compareMode'] = 0
     if 'processTypes' not in job:
         job['processTypes'] = None
     if 'processFind' not in job:

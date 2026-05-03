@@ -71,6 +71,7 @@ class CopyItem:
     def doByLocalRelayCopy(self):
         localTmpFile = os.path.join(self.jobTask.tempDir, f"{uuid.uuid4().hex}.tmp")
         srcFilePath = f"{self.srcPath}{self.fileName}"
+        logger = logging.getLogger()
         try:
             self.status = 1
             self.srcAlistClient.downloadFile(srcFilePath, localTmpFile)
@@ -78,7 +79,24 @@ class CopyItem:
             if self.jobTask.breakFlag:
                 self.status = 4
                 return
-            self.dstAlistClient.uploadLocalFile(self.dstPath, self.fileName, localTmpFile, True)
+            try:
+                self.dstAlistClient.uploadLocalFile(self.dstPath, self.fileName, localTmpFile, True)
+            except Exception as e:
+                eMsg = str(e)
+                logger.warning(
+                    "job local upload failed, taskId=%s, src=%s, dst=%s, file=%s, err=%s",
+                    self.taskId,
+                    self.srcPath,
+                    self.dstPath,
+                    self.fileName,
+                    eMsg
+                )
+                # 某些 OpenList/AList 场景下 overwrite 仍可能返回 400，尝试删除后重传一次
+                if '400' in eMsg and self.fileName and not self.fileName.endswith('/'):
+                    self.dstAlistClient.deleteFile(self.dstPath, [self.fileName], self.jobTask.job['scanIntervalT'])
+                    self.dstAlistClient.uploadLocalFile(self.dstPath, self.fileName, localTmpFile, True)
+                else:
+                    raise
             self.status = 2
         finally:
             if os.path.exists(localTmpFile):
@@ -170,6 +188,12 @@ class JobTask:
         self.job = self.jobClient.job
         self.copySyncType = self.job.get('copyType', 0)
         self.processEnable = int(self.job.get('processEnable', 0))
+        try:
+            self.compareMode = int(self.job.get('compareMode', 0))
+        except Exception:
+            self.compareMode = 0
+        if self.compareMode not in [0, 1]:
+            self.compareMode = 0
         self.processFind = self.job.get('processFind', None)
         self.processReplace = self.job.get('processReplace', '')
         self.processPattern = None
@@ -526,8 +550,9 @@ class JobTask:
         for key in srcFiles.keys():
             # 如果是文件
             if not key.endswith('/'):
-                # 目标目录没有这个文件或文件大小不匹配(即需要同步)
-                if key not in dstFiles or dstFiles[key] != srcFiles[key]:
+                # compareMode: 0-文件名+大小，1-仅文件名
+                shouldCopy = key not in dstFiles if self.compareMode == 1 else (key not in dstFiles or dstFiles[key] != srcFiles[key])
+                if shouldCopy:
                     self.copyFile(srcPath, dstPath, key, srcFiles[key])
             # 如果是目录
             else:

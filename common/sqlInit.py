@@ -4,7 +4,7 @@ from common import sqlBase
 
 @sqlBase.connect_sql
 def init_sql(conn):
-    cuVersion = 260504
+    cuVersion = 260505
     cursor = conn.cursor()
     cursor.execute("SELECT name FROM sqlite_master WHERE name='user_list'")
     passwd = None
@@ -45,6 +45,7 @@ def init_sql(conn):
                        "processTypes text DEFAULT NULL,"     # 处理匹配的文件后缀，英文冒号分隔，如.txt:.md
                        "processFind text DEFAULT NULL,"      # 替换查找规则（正则）
                        "processReplace text DEFAULT NULL,"   # 替换内容
+                       "compareMode integer DEFAULT 0,"      # 文件对比模式，0-文件名+大小，1-仅文件名
                        "interval integer,"                  # 同步间隔，单位：分钟
                        "isCron integer DEFAULT 0,"          # 是否使用cron，0-使用interval, 1-使用cron，2-仅手动
                        "year text DEFAULT NULL,"            # 四位数的年份
@@ -152,6 +153,8 @@ def init_sql(conn):
                 cursor.execute("alter table job add column processTypes text DEFAULT NULL")
                 cursor.execute("alter table job add column processFind text DEFAULT NULL")
                 cursor.execute("alter table job add column processReplace text DEFAULT NULL")
+            if sqlVersion < 260505:
+                cursor.execute("alter table job add column compareMode integer DEFAULT 0")
             cursor.execute(f"update user_list set sqlVersion={cuVersion}")
             conn.commit()
     cursor.close()
