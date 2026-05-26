@@ -95,8 +95,15 @@ class CopyItem:
                 )
                 # 某些 OpenList/AList 场景下 overwrite 仍可能返回 400，尝试删除后重传一次
                 if '400' in eMsg and self.fileName and not self.fileName.endswith('/'):
-                    self.dstAlistClient.deleteFile(self.dstPath, [self.fileName], self.jobTask.job['scanIntervalT'])
-                    self.dstAlistClient.uploadLocalFile(self.dstPath, self.fileName, localTmpFile, True)
+                    try:
+                        logger.info(f"尝试删除后重新上传: {self.dstPath}{self.fileName}")
+                        self.dstAlistClient.deleteFile(self.dstPath, [self.fileName], self.jobTask.job['scanIntervalT'])
+                        self.dstAlistClient.uploadLocalFile(self.dstPath, self.fileName, localTmpFile, True)
+                        logger.info(f"删除重传成功: {self.dstPath}{self.fileName}")
+                    except Exception as retryErr:
+                        logger.error(f"删除重传失败: {self.dstPath}{self.fileName}, 错误: {str(retryErr)}")
+                        # 如果删除重传也失败，抛出原始错误而不是重试错误
+                        raise e
                 else:
                     raise
             self.status = 2
