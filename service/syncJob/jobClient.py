@@ -53,6 +53,7 @@ class CopyItem:
             if self.jobTask.breakFlag:
                 self.status = 4
             else:
+                logger.debug(f"CopyItem执行: file={self.fileName}, copySyncType={self.copySyncType}, copyType={self.copyType}")
                 if self.copySyncType == 0:
                     self.doByRemoteCopy()
                 else:
@@ -64,7 +65,32 @@ class CopyItem:
         self.endIt()
 
     def doByRemoteCopy(self):
-        self.alistTaskId = self.srcAlistClient.copyFile(self.srcPath, self.dstPath, self.fileName)
+        logger = logging.getLogger()
+        try:
+            self.alistTaskId = self.srcAlistClient.copyFile(self.srcPath, self.dstPath, self.fileName)
+        except Exception as e:
+            eMsg = str(e)
+            logger.warning(
+                "job remote copy failed, taskId=%s, src=%s, dst=%s, file=%s, err=%s",
+                self.taskId,
+                self.srcPath,
+                self.dstPath,
+                self.fileName,
+                eMsg
+            )
+            # 某些场景下远程复制可能返回 400（如文件名编码问题），尝试删除后重试
+            if '400' in eMsg and self.fileName and not self.fileName.endswith('/'):
+                try:
+                    logger.info(f"尝试删除后重新远程复制: {self.dstPath}{self.fileName}")
+                    self.dstAlistClient.deleteFile(self.dstPath, [self.fileName], self.jobTask.job['scanIntervalT'])
+                    self.alistTaskId = self.srcAlistClient.copyFile(self.srcPath, self.dstPath, self.fileName)
+                    logger.info(f"删除重试成功: {self.dstPath}{self.fileName}")
+                except Exception as retryErr:
+                    logger.error(f"删除重试失败: {self.dstPath}{self.fileName}, 错误: {str(retryErr)}")
+                    raise e
+            else:
+                raise
+        
         if self.alistTaskId is None:
             self.status = 2
         elif self.status != 4:
