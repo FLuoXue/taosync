@@ -59,36 +59,43 @@ class CopyItem:
                 else:
                     self.doByLocalRelayCopy()
         except Exception as e:
-            self.errMsg = str(e)
+            eMsg = str(e)
+            self.errMsg = eMsg
             self.status = 7
-            logger.error(f"任务执行失败: {self.srcPath}{self.fileName} -> {self.dstPath}, 错误: {str(e)}")
+            logger.warning(f"任务执行失败: {self.srcPath}{self.fileName} -> {self.dstPath}, 错误: {eMsg}")
+            
+            # 某些场景下可能返回 400（如文件名编码问题），尝试删除后重试
+            if '400' in eMsg and self.fileName and not self.fileName.endswith('/'):
+                try:
+                    logger.warning(f"尝试删除后重试: {self.dstPath}{self.fileName}")
+                    self.dstAlistClient.deleteFile(self.dstPath, [self.fileName], self.jobTask.job['scanIntervalT'])
+                    # 重新执行复制
+                    if self.copySyncType == 0:
+                        self.alistTaskId = self.srcAlistClient.copyFile(self.srcPath, self.dstPath, self.fileName)
+                        if self.alistTaskId is None:
+                            self.status = 2
+                        else:
+                            self.status = 0
+                            self.checkAndGetStatus()
+                    else:
+                        # 本地中转重试
+                        localTmpFile = os.path.join(self.jobTask.tempDir, f"{uuid.uuid4().hex}.tmp")
+                        try:
+                            self.srcAlistClient.downloadFile(f"{self.srcPath}{self.fileName}", localTmpFile)
+                            self.dstAlistClient.uploadLocalFile(self.dstPath, self.fileName, localTmpFile, True)
+                            self.status = 2
+                        finally:
+                            if os.path.exists(localTmpFile):
+                                os.remove(localTmpFile)
+                    logger.warning(f"删除重试成功: {self.dstPath}{self.fileName}")
+                    self.errMsg = None
+                except Exception as retryErr:
+                    logger.error(f"删除重试失败: {self.dstPath}{self.fileName}, 错误: {str(retryErr)}")
         self.endIt()
 
     def doByRemoteCopy(self):
         logger = logging.getLogger()
-        try:
-            self.alistTaskId = self.srcAlistClient.copyFile(self.srcPath, self.dstPath, self.fileName)
-        except Exception as e:
-            eMsg = str(e)
-            logger.warning(f"远程复制失败: {self.dstPath}{self.fileName}, 错误: {eMsg}")
-            # 某些场景下远程复制可能返回 400（如文件名编码问题），尝试删除后重试
-            if '400' in eMsg and self.fileName and not self.fileName.endswith('/'):
-                try:
-                    logger.warning(f"尝试删除后重新远程复制: {self.dstPath}{self.fileName}")
-                    self.dstAlistClient.deleteFile(self.dstPath, [self.fileName], self.jobTask.job['scanIntervalT'])
-                    self.alistTaskId = self.srcAlistClient.copyFile(self.srcPath, self.dstPath, self.fileName)
-                    logger.warning(f"删除重试成功: {self.dstPath}{self.fileName}")
-                    # 重试成功，继续正常流程
-                    if self.alistTaskId is None:
-                        self.status = 2
-                    elif self.status != 4:
-                        self.checkAndGetStatus()
-                    return
-                except Exception as retryErr:
-                    logger.error(f"删除重试失败: {self.dstPath}{self.fileName}, 错误: {str(retryErr)}")
-            # 重试失败或不满足重试条件，抛出原始异常
-            raise
-        
+        self.alistTaskId = self.srcAlistClient.copyFile(self.srcPath, self.dstPath, self.fileName)
         if self.alistTaskId is None:
             self.status = 2
         elif self.status != 4:
@@ -105,24 +112,7 @@ class CopyItem:
             if self.jobTask.breakFlag:
                 self.status = 4
                 return
-            try:
-                self.dstAlistClient.uploadLocalFile(self.dstPath, self.fileName, localTmpFile, True)
-            except Exception as e:
-                eMsg = str(e)
-                logger.warning(f"本地上传失败: {self.dstPath}{self.fileName}, 错误: {eMsg}")
-                # 某些 OpenList/AList 场景下 overwrite 仍可能返回 400，尝试删除后重传一次
-                if '400' in eMsg and self.fileName and not self.fileName.endswith('/'):
-                    try:
-                        logger.warning(f"尝试删除后重新上传: {self.dstPath}{self.fileName}")
-                        self.dstAlistClient.deleteFile(self.dstPath, [self.fileName], self.jobTask.job['scanIntervalT'])
-                        self.dstAlistClient.uploadLocalFile(self.dstPath, self.fileName, localTmpFile, True)
-                        logger.warning(f"删除重传成功: {self.dstPath}{self.fileName}")
-                    except Exception as retryErr:
-                        logger.error(f"删除重传失败: {self.dstPath}{self.fileName}, 错误: {str(retryErr)}")
-                        # 如果删除重传也失败，抛出原始错误
-                        raise
-                else:
-                    raise
+            self.dstAlistClient.uploadLocalFile(self.dstPath, self.fileName, localTmpFile, True)
             self.status = 2
         finally:
             if os.path.exists(localTmpFile):
