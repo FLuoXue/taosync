@@ -45,6 +45,34 @@ class AlistClient:
         self.waits = {}
         self.getUser()
 
+    @staticmethod
+    def parseHttpErrorMsg(resp):
+        """
+        解析HTTP错误详情，优先取JSON中的message，再回退到文本
+        :param resp: requests响应对象
+        :return:
+        """
+        import logging
+        logger = logging.getLogger()
+        try:
+            body = resp.json()
+            if isinstance(body, dict):
+                for key in ['message', 'msg', 'error']:
+                    val = body.get(key)
+                    if val is not None and str(val).strip() != '':
+                        return str(val)
+        except Exception:
+            pass
+        text = (resp.text or '').strip()
+        if text:
+            logger.warning(f"AList HTTP {resp.status_code}: {text[:500]}")
+            return text[:500]
+        if resp.reason:
+            logger.warning(f"AList HTTP {resp.status_code}: {resp.reason}")
+            return resp.reason
+        logger.warning(f"AList HTTP {resp.status_code}: 响应体为空")
+        return G('code_not_200')
+
     def req(self, method, url, data=None, params=None):
         """
         通用请求
@@ -64,14 +92,18 @@ class AlistClient:
             headers = {
                 'Authorization': self.token
             }
+        import logging
+        logger = logging.getLogger()
         try:
             r = requests.request(method, self.url + url, json=data, params=params, headers=headers, timeout=(60, 300))
             if r.status_code == 200:
                 res = r.json()
             else:
                 res['code'] = r.status_code
-                res['message'] = G('code_not_200')
+                res['message'] = self.parseHttpErrorMsg(r)
+                logger.error(f"AList请求失败: {method.upper()} {self.url}{url}, 状态码={r.status_code}, 错误={res['message']}")
         except Exception as e:
+            logger.error(f"AList请求异常: {method.upper()} {self.url}{url}, 异常={str(e)}")
             if 'Invalid URL' in str(e):
                 raise Exception(G('address_incorrect'))
             elif 'Max retries' in str(e):
@@ -400,7 +432,7 @@ class AlistClient:
         try:
             with requests.get(downUrl, stream=True, headers=headers, timeout=(60, 300)) as r:
                 if r.status_code != 200:
-                    raise Exception(G('alist_fail_code_reason').format(r.status_code, G('code_not_200')))
+                    raise Exception(G('alist_fail_code_reason').format(r.status_code, self.parseHttpErrorMsg(r)))
                 with open(localFilePath, 'wb') as fp:
                     for chunk in r.iter_content(chunk_size=1024 * 256):
                         if chunk:
@@ -432,7 +464,7 @@ class AlistClient:
             with open(localFilePath, 'rb') as fp:
                 r = requests.put(self.url + '/api/fs/put', data=fp, headers=headers, timeout=(60, 300))
             if r.status_code != 200:
-                raise Exception(G('alist_fail_code_reason').format(r.status_code, G('code_not_200')))
+                raise Exception(G('alist_fail_code_reason').format(r.status_code, self.parseHttpErrorMsg(r)))
             res = r.json()
             if 'code' not in res or res['code'] != 200:
                 raise Exception(G('alist_fail_code_reason').format(res.get('code', 500), res.get('message', 'error')))

@@ -48,6 +48,7 @@ class CopyItem:
         doThread.start()
 
     def doIt(self):
+        logger = logging.getLogger()
         try:
             if self.jobTask.breakFlag:
                 self.status = 4
@@ -59,6 +60,7 @@ class CopyItem:
         except Exception as e:
             self.errMsg = str(e)
             self.status = 7
+            logger.error(f"任务执行失败: {self.srcPath}{self.fileName} -> {self.dstPath}, 错误: {str(e)}")
         self.endIt()
 
     def doByRemoteCopy(self):
