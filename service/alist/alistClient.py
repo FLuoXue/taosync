@@ -101,7 +101,7 @@ class AlistClient:
             else:
                 res['code'] = r.status_code
                 res['message'] = self.parseHttpErrorMsg(r)
-                logger.error(f"AList请求失败: {method.upper()} {self.url}{url}, 状态码={r.status_code}, 错误={res['message']}")
+                logger.error(f"AList请求失败: {method.upper()} {self.url}{url}, 状态码={r.status_code}, 请求数据={data}, 错误={res['message']}")
         except Exception as e:
             logger.error(f"AList请求异常: {method.upper()} {self.url}{url}, 异常={str(e)}")
             if 'Invalid URL' in str(e):
