@@ -57,6 +57,9 @@ jobs:
           sed -i "s/{{VERSION}}/$VERSION/g" src/views/page/setting/index.vue
           npm run build
 
+      - name: 设置 QEMU（支持多架构）
+        uses: docker/setup-qemu-action@v3
+
       - name: 构建并推送 Docker 镜像
         uses: docker/build-push-action@v5
         with:
@@ -67,7 +70,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64,linux/arm/v7
 
       - name: 输出镜像信息
         run: |
